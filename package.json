@@ -3,11 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
-  },
+  "dev": "next dev",
+  "build": "next build && node -e \"setTimeout(() => process.exit(0), 0)\"",
+  "start": "next start",
+  "lint": "next lint"
+},
   "dependencies": {
     "@remotion/bundler": "4.0.518",
     "@remotion/canvas": "4.0.518",
