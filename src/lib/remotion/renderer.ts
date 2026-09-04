@@ -18,35 +18,57 @@ export class VideoRenderer {
     console.log(`🐞 [Renderer] شروع رندر ویدیو با قالب ${plan.templateId}...`);
 
     try {
-      // ۱. آماده‌سازی داده‌ها برای قالب
+      // ✅ ۱. بررسی و ایمن‌سازی پست‌ها
+      const safePosts = posts && posts.length > 0 ? posts : [
+        {
+          id: 'placeholder-1',
+          imageUrl: '',
+          caption: 'محتوای نمونه',
+          likesCount: 0,
+        },
+        {
+          id: 'placeholder-2',
+          imageUrl: '',
+          caption: 'محتوای نمونه ۲',
+          likesCount: 0,
+        },
+        {
+          id: 'placeholder-3',
+          imageUrl: '',
+          caption: 'محتوای نمونه ۳',
+          likesCount: 0,
+        },
+      ];
+
+      // ۲. آماده‌سازی داده‌ها برای قالب
       const templateProps = {
-        posts,
+        posts: safePosts,
         scenes: plan.scenes.map(s => ({
-          postIndex: s.assetIndex,
-          duration: s.duration,
-          caption: s.text,
+          postIndex: s.assetIndex ?? 0,
+          duration: s.duration || 3,
+          caption: s.text || 'محتوای ویژه',
           animation: s.animation || 'fade',
         })),
-        hook: plan.scenes.find(s => s.type === 'hook')?.text || '',
-        cta: plan.scenes.find(s => s.type === 'cta')?.text || '',
+        hook: plan.scenes.find(s => s.type === 'hook')?.text || '✨ محتوای جذاب!',
+        cta: plan.scenes.find(s => s.type === 'cta')?.text || '🚀 همین حالا دنبال کنید!',
         brandHandle: 'zuck',
-        colorPalette: [plan.colorVariant, '#8b5cf6', '#ec4899'],
+        colorPalette: [plan.colorVariant || '#6366f1', '#8b5cf6', '#ec4899'],
       };
 
-      // ۲. تعیین مسیر خروجی
+      // ۳. تعیین مسیر خروجی
       const outputFile = outputPath || path.join(os.tmpdir(), `teaser-${Date.now()}.mp4`);
       console.log(`🐞 [Renderer] مسیر خروجی: ${outputFile}`);
 
-      // ۳. ایجاد فایل JSON موقت برای props
+      // ۴. ایجاد فایل JSON موقت برای props
       const propsFile = path.join(os.tmpdir(), `props-${Date.now()}.json`);
       fs.writeFileSync(propsFile, JSON.stringify(templateProps, null, 2));
       console.log(`🐞 [Renderer] فایل props ساخته شد: ${propsFile}`);
 
-      // ۴. پیدا کردن مسیر مرورگر نصب‌شده
+      // ۵. پیدا کردن مسیر مرورگر
       const browserPath = this.findBrowserPath();
       console.log(`🐞 [Renderer] مرورگر پیدا شد: ${browserPath || 'پیدا نشد (استفاده از پیش‌فرض)'}`);
 
-      // ۵. ساخت دستور با --browser-executable
+      // ۶. ساخت دستور رندر
       let command = `npx remotion render src/remotion/index.ts VideoTeaser ${outputFile} --props=${propsFile} --codec=h264 --fps=30 --duration=450`;
       
       if (browserPath) {
@@ -64,10 +86,10 @@ export class VideoRenderer {
       }
       console.log(`🐞 [Renderer] خروجی: ${stdout}`);
 
-      // ۶. پاک کردن فایل JSON موقت
+      // ۷. پاک کردن فایل JSON موقت
       try { fs.unlinkSync(propsFile); } catch (e) {}
 
-      // ۷. بررسی وجود فایل
+      // ۸. بررسی وجود فایل خروجی
       if (fs.existsSync(outputFile)) {
         const stats = fs.statSync(outputFile);
         console.log(`🐞 [Renderer] ✅ فایل ساخته شد: ${(stats.size / 1024 / 1024).toFixed(2)} MB`);

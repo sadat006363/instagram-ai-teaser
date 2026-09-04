@@ -5,17 +5,27 @@ import { spring } from 'remotion';
 import { useState } from 'react';
 
 interface SceneProps {
-  post: { imageUrl: string; caption: string };
+  post: { 
+    imageUrl: string; 
+    caption: string;
+    id?: string;
+  };
   caption: string;
   animation: 'zoom-in' | 'zoom-out' | 'slide-up' | 'fade';
   colorPalette: { primary: string; secondary: string; text: string };
 }
 
-export const Scene: React.FC<SceneProps> = ({ post, caption, animation, colorPalette }) => {
+export const Scene: React.FC<SceneProps> = ({ 
+  post, 
+  caption, 
+  animation, 
+  colorPalette 
+}) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const [imageError, setImageError] = useState(false);
 
+  // ✅ محاسبه انیمیشن با مقادیر ایمن
   let scale = 1;
   let translateX = 0;
   let translateY = 0;
@@ -48,11 +58,17 @@ export const Scene: React.FC<SceneProps> = ({ post, caption, animation, colorPal
 
   const captionOpacity = interpolate(frame, [15, 30], [0, 1]);
 
-  const imageUrl = imageError ? null : post.imageUrl;
+  // ✅ بررسی ایمن آدرس تصویر
+  const imageUrl = post?.imageUrl && !imageError ? post.imageUrl : null;
+  const isPlaceholder = !imageUrl || imageUrl === '';
+
+  // ✅ متن کپشن با فال‌بک
+  const displayCaption = caption || post?.caption || 'محتوای ویژه';
 
   return (
     <AbsoluteFill>
-      {imageUrl ? (
+      {/* ✅ تصویر با Fallback برای خطا */}
+      {!isPlaceholder ? (
         <Img
           src={imageUrl}
           style={{
@@ -65,27 +81,36 @@ export const Scene: React.FC<SceneProps> = ({ post, caption, animation, colorPal
           onError={() => setImageError(true)}
         />
       ) : (
+        // ✅ Placeholder در صورت نبود تصویر
         <AbsoluteFill
           style={{
-            backgroundColor: colorPalette.primary || '#6366f1',
-            opacity: 0.3,
+            backgroundColor: colorPalette?.primary || '#6366f1',
+            opacity: 0.7,
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
+            transform: `scale(${scale})`,
           }}
         >
-          <div style={{ fontSize: 40, color: '#fff', fontWeight: 'bold' }}>
+          <div style={{ 
+            fontSize: 80, 
+            color: '#fff', 
+            fontWeight: 'bold',
+            textShadow: '0 2px 10px rgba(0,0,0,0.3)',
+          }}>
             🖼️
           </div>
         </AbsoluteFill>
       )}
 
+      {/* ✅ گرادیان شفاف برای خوانایی بهتر متن */}
       <AbsoluteFill
         style={{
           background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%)',
         }}
       />
 
+      {/* ✅ متن زیرنویس با فال‌بک */}
       <div
         style={{
           position: 'absolute',
@@ -93,7 +118,7 @@ export const Scene: React.FC<SceneProps> = ({ post, caption, animation, colorPal
           left: 0,
           right: 0,
           textAlign: 'center',
-          color: colorPalette.text,
+          color: colorPalette?.text || '#FFFFFF',
           fontSize: 40,
           fontWeight: 'bold',
           padding: 20,
@@ -101,7 +126,7 @@ export const Scene: React.FC<SceneProps> = ({ post, caption, animation, colorPal
           textShadow: '0 2px 8px rgba(0,0,0,0.5)',
         }}
       >
-        {caption}
+        {displayCaption}
       </div>
     </AbsoluteFill>
   );
