@@ -5,7 +5,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { renderAndUploadTeaser } from '@/app/actions/render.action';
 import { TeaserPreview } from '@/components/teaser/TeaserPreview';
 import { Button } from '@/components/ui/Button';
-import { Loader2, Download, Copy, Share2 } from 'lucide-react';
+import { Loader2, Download, Copy, Share2, Check } from 'lucide-react';
 
 function ResultContent() {
   const searchParams = useSearchParams();

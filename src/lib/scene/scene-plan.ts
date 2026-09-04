@@ -6,7 +6,7 @@ import { Template } from './template-selector';
 export interface ScenePlan {
   templateId: string;
   scenes: Array<{
-    type: 'hook' | 'showcase' | 'proof' | 'benefit' | 'cta';
+    type: 'hook' | 'showcase' | 'cta';
     assetIndex: number;
     text: string;
     duration: number;
@@ -16,11 +16,8 @@ export interface ScenePlan {
   musicMood: string;
 }
 
-/**
- * تولید یک صحنه placeholder در صورت نبود پست
- */
 function createPlaceholderScene(index: number, type: 'hook' | 'showcase' | 'cta'): {
-  type: 'hook' | 'showcase' | 'proof' | 'benefit' | 'cta';
+  type: 'hook' | 'showcase' | 'cta';
   assetIndex: number;
   text: string;
   duration: number;
@@ -40,9 +37,6 @@ function createPlaceholderScene(index: number, type: 'hook' | 'showcase' | 'cta'
   };
 }
 
-/**
- * تبدیل فیلم‌نامه‌ی AI به یک Scene Plan ساختاریافته (با پشتیبانی از پست‌های خالی)
- */
 export function generateScenePlan(
   script: Script,
   profile: InstagramProfileData,
@@ -51,13 +45,10 @@ export function generateScenePlan(
 ): ScenePlan {
   console.log(`🐞 [ScenePlan] شروع تولید سناریوی ساختاریافته...`);
 
-  // ✅ ۱. اعتبارسنجی و آماده‌سازی پست‌ها
   const posts = profile.posts || [];
   const availablePostsCount = posts.length;
-
   console.log(`🐞 [ScenePlan] تعداد پست‌های موجود: ${availablePostsCount}`);
 
-  // ✅ ۲. انتخاب بهترین پست‌ها (با امتیازدهی)
   let topPosts: any[] = [];
   if (availablePostsCount > 0) {
     const scoredPosts = posts.map((post, index) => ({
@@ -70,52 +61,72 @@ export function generateScenePlan(
     console.log(`🐞 [ScenePlan] ✅ ${topPosts.length} پست برتر انتخاب شدند`);
   } else {
     console.warn(`🐞 [ScenePlan] ⚠️ هیچ پستی موجود نیست. استفاده از Placeholder.`);
-    // ✅ ۳. ایجاد داده‌های ساختگی برای placeholder
     topPosts = [
       { index: 0, caption: 'محتوای ویژه شماره ۱', imageUrl: '' },
-      { index: 0, caption: 'محتوای ویژه شماره ۲', imageUrl: '' },
-      { index: 0, caption: 'محتوای ویژه شماره ۳', imageUrl: '' },
+      { index: 1, caption: 'محتوای ویژه شماره ۲', imageUrl: '' },
+      { index: 2, caption: 'محتوای ویژه شماره ۳', imageUrl: '' },
     ];
   }
 
-  // ✅ ۴. ساخت صحنه‌ها با بررسی امن
-  const scenes = script.scenes.map((scene, i) => {
-    // انتخاب پست با بررسی امن
-    const postIndex = scene.postIndex ?? 0;
-    const safePostIndex = Math.min(Math.max(0, postIndex), topPosts.length - 1);
-    const post = topPosts[safePostIndex] || topPosts[0] || { index: 0, caption: 'محتوای پیش‌فرض', imageUrl: '' };
+  const scenes: Array<{
+    type: 'hook' | 'showcase' | 'cta';
+    assetIndex: number;
+    text: string;
+    duration: number;
+    animation: string;
+  }> = [];
 
-    // تعیین نوع صحنه
-    let type: 'hook' | 'showcase' | 'proof' | 'benefit' | 'cta';
-    if (i === 0) {
-      type = 'hook';
-    } else if (i === script.scenes.length - 1) {
-      type = 'cta';
-    } else {
-      type = 'showcase';
-    }
-
-    // استخراج متن با فال‌بک
-    const text = scene.caption || post.caption || `صحنه ${i + 1}`;
-
-    return {
-      type,
-      assetIndex: post.index ?? 0,
-      text: text.substring(0, 60), // محدودیت طول متن
-      duration: scene.duration || 3,
-      animation: scene.animation || 'fade',
-    };
+  // Hook
+  const hookText = script.hook || '✨ محتوای جذاب!';
+  scenes.push({
+    type: 'hook',
+    assetIndex: 0,
+    text: hookText,
+    duration: 3,
+    animation: 'zoom-in',
   });
 
-  // ✅ ۵. اگر هیچ صحنه‌ای وجود نداشت، placeholder بساز
-  if (scenes.length === 0) {
-    console.warn(`🐞 [ScenePlan] ⚠️ هیچ صحنه‌ای تولید نشد. استفاده از Placeholder.`);
-    scenes.push(createPlaceholderScene(0, 'hook'));
-    scenes.push(createPlaceholderScene(1, 'showcase'));
-    scenes.push(createPlaceholderScene(2, 'cta'));
+  // Showcase scenes
+  const showcaseScenes = script.scenes.slice(0, 3);
+  if (showcaseScenes.length > 0) {
+    showcaseScenes.forEach((scene, idx) => {
+      const postIdx = Math.min(Math.max(scene.postIndex ?? 0, 0), topPosts.length - 1);
+      const post = topPosts[postIdx] || topPosts[0];
+      scenes.push({
+        type: 'showcase',
+        assetIndex: post.index ?? 0,
+        text: scene.caption || post.caption || `صحنه ${idx + 1}`,
+        duration: scene.duration || 3,
+        animation: scene.animation || 'fade',
+      });
+    });
+  } else {
+    // اگر صحنه‌ای وجود نداشت، placeholder
+    scenes.push({
+      type: 'showcase',
+      assetIndex: 0,
+      text: 'محتوای ویژه',
+      duration: 4,
+      animation: 'slide-up',
+    });
+    scenes.push({
+      type: 'showcase',
+      assetIndex: 0,
+      text: 'با ما همراه شوید',
+      duration: 4,
+      animation: 'fade',
+    });
   }
 
-  // ✅ ۶. انتخاب رنگ و موسیقی بر اساس برند
+  // CTA
+  scenes.push({
+    type: 'cta',
+    assetIndex: 0,
+    text: script.cta || '🚀 همین حالا دنبال کنید!',
+    duration: 3,
+    animation: 'zoom-out',
+  });
+
   const colorVariant = brandProfile.colorPalette?.[0] || '#6366f1';
   const musicMood = brandProfile.visualEnergy === 'high' ? 'upbeat' : 'minimal';
 
@@ -127,9 +138,6 @@ export function generateScenePlan(
   };
 }
 
-/**
- * محاسبه امتیاز برای هر پست
- */
 function calculatePostScore(post: any, brandProfile: BrandProfile): number {
   let score = 0;
   score += (post.likesCount || 0) / 100;

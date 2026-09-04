@@ -13,11 +13,9 @@ interface TeaserPreviewProps {
 export function TeaserPreview({ props, className = '' }: TeaserPreviewProps) {
   const [isReady, setIsReady] = useState(false);
 
-  // محاسبه مدت زمان بر اساس صحنه‌ها
-  const totalDuration = props.script.scenes.reduce((sum, s) => sum + s.duration, 2 + 2); // Hook + CTA
-  const durationInFrames = Math.max(totalDuration * 30, 15 * 30); // حداقل ۱۵ ثانیه
+  const totalDuration = props.script.scenes.reduce((sum, s) => sum + s.duration, 2 + 2);
+  const durationInFrames = Math.max(totalDuration * 30, 15 * 30);
 
-  // اعتبارسنجی props
   const safeProps: RemotionProps = {
     posts: props.posts && props.posts.length > 0 ? props.posts : [
       { id: 'placeholder', imageUrl: '', caption: 'محتوای نمونه', likesCount: 0 },
@@ -30,7 +28,7 @@ export function TeaserPreview({ props, className = '' }: TeaserPreviewProps) {
             postIndex: Math.min(Math.max(s.postIndex ?? 0, 0), props.posts.length - 1),
             duration: Math.max(s.duration || 3, 2),
             caption: s.caption || `صحنه ${i + 1}`,
-            animation: s.animation || 'fade',
+            animation: (s.animation || 'fade') as 'zoom-in' | 'zoom-out' | 'slide-up' | 'fade',
           }))
         : [
             { postIndex: 0, duration: 5, caption: 'محتوای ویژه', animation: 'fade' as const },
@@ -52,7 +50,7 @@ export function TeaserPreview({ props, className = '' }: TeaserPreviewProps) {
     <div className={`relative ${className}`}>
       <div className="relative rounded-xl overflow-hidden shadow-2xl bg-black" style={{ aspectRatio: '9/16' }}>
         <Player
-          component={VideoTeaser}
+          component={VideoTeaser as any}
           inputProps={safeProps}
           durationInFrames={durationInFrames}
           fps={30}

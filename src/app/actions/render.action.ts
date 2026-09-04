@@ -79,7 +79,7 @@ export async function renderAndUploadTeaser(username: string): Promise<RenderAct
           postIndex: s.assetIndex ?? 0,
           duration: s.duration || 3,
           caption: s.text || 'محتوای ویژه',
-          animation: s.animation || 'fade',
+          animation: (s.animation || 'fade') as 'zoom-in' | 'zoom-out' | 'slide-up' | 'fade',
         })),
         cta: scriptRes.data.cta || '🚀 همین حالا دنبال کنید!',
         brandHandle: profileRes.data.username || username,
