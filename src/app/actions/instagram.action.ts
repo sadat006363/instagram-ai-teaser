@@ -48,37 +48,39 @@ export async function fetchInstagramProfile(
   } catch (error) {
     console.error(`🐞 [Action] ❌ خطا رخ داد:`, error);
 
+    // 🔥 برگرداندن خطای کامل به کلاینت (برای دیباگ در کنسول مرورگر)
     if (error instanceof InstagramScraperError) {
-      console.error(`🐞 [Action] 📌 نوع خطا: InstagramScraperError`);
-      console.error(`🐞 [Action] 📌 کد خطا: ${error.code}`);
       return {
         success: false,
         error: {
           message: error.message,
           code: error.code || 'SCRAPER_ERROR',
+          details: error.message, // جزئیات کامل
+          stack: error.stack, // استک کامل (برای دیباگ)
         },
       };
     }
 
     if (error instanceof z.ZodError) {
-      console.error(`🐞 [Action] 📌 نوع خطا: ZodError`);
-      console.error(`🐞 [Action] 📌 جزئیات:`, error.issues);
       return {
         success: false,
         error: {
           message: 'داده‌های دریافتی از اینستاگرام معتبر نیستند.',
           code: 'VALIDATION_ERROR',
           details: error.issues,
+          stack: error.stack,
         },
       };
     }
 
-    console.error(`🐞 [Action] 📌 نوع خطا: ناشناخته`);
+    // خطای ناشناخته - همه‌ی جزئیات را برگردان
     return {
       success: false,
       error: {
-        message: error instanceof Error ? error.message : 'خطای غیرمنتظره‌ای رخ داد.',
+        message: error instanceof Error ? error.message : 'خطای غیرمنتظره',
         code: 'UNKNOWN_ERROR',
+        details: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
       },
     };
   }
