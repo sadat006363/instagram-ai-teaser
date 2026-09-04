@@ -1,50 +1,33 @@
 'use server';
 
-import fs from 'fs';
 import { fetchInstagramProfile } from './instagram.action';
 import { generateTeaserScript } from './script.action';
 import { analyzeBrandProfile } from '@/lib/scene/brand-profile';
 import { selectTemplate } from '@/lib/scene/template-selector';
 import { generateScenePlan } from '@/lib/scene/scene-plan';
 import { validateScenePlan } from '@/lib/scene/validator';
-import { VideoRenderer } from '@/lib/remotion/renderer';
-import { VideoStorage } from '@/lib/remotion/storage';
-import { downloadAllPostImages } from '@/lib/utils/download-image';
+import { RenderActionResult } from '@/lib/types/result.types';
 
-export async function renderAndUploadTeaser(username: string) {
-  console.log(`🐞 [RenderAction] شروع رندر هوشمند برای ${username}`);
+export async function renderAndUploadTeaser(username: string): Promise<RenderActionResult> {
+  console.log(`🐞 [RenderAction] شروع پردازش هوشمند برای ${username}`);
+  console.log(`🐞 [RenderAction] Preview mode: client (بدون رندر MP4 سروری)`);
 
   try {
     // ۱. دریافت پروفایل
     console.log(`🐞 [RenderAction] مرحله 1: دریافت پروفایل...`);
     const profileRes = await fetchInstagramProfile(username);
     if (!profileRes.success || !profileRes.data) {
-      throw new Error('خطا در دریافت پروفایل');
+      throw new Error(profileRes.error?.message || 'خطا در دریافت پروفایل');
     }
 
-    // ✅ ۲. بررسی و آماده‌سازی پست‌ها (حتی اگر خالی باشد)
+    // ۲. آماده‌سازی پست‌ها (حتی اگر خالی باشد)
     let safePosts = profileRes.data.posts || [];
     if (safePosts.length === 0) {
-      console.warn(`🐞 [RenderAction] ⚠️ هیچ پستی یافت نشد. استفاده از پست placeholder.`);
+      console.warn(`🐞 [RenderAction] ⚠️ هیچ پستی یافت نشد. استفاده از placeholder.`);
       safePosts = [
-        {
-          id: 'placeholder-1',
-          imageUrl: '',
-          caption: 'محتوای ویژه',
-          likesCount: 0,
-        },
-        {
-          id: 'placeholder-2',
-          imageUrl: '',
-          caption: 'با ما همراه شوید',
-          likesCount: 0,
-        },
-        {
-          id: 'placeholder-3',
-          imageUrl: '',
-          caption: 'تجربه‌ای متفاوت',
-          likesCount: 0,
-        },
+        { id: 'p1', imageUrl: '', caption: 'محتوای ویژه', likesCount: 0 },
+        { id: 'p2', imageUrl: '', caption: 'با ما همراه شوید', likesCount: 0 },
+        { id: 'p3', imageUrl: '', caption: 'تجربه‌ای متفاوت', likesCount: 0 },
       ];
     }
 
@@ -66,7 +49,7 @@ export async function renderAndUploadTeaser(username: string) {
       throw new Error('خطا در تولید فیلم‌نامه');
     }
 
-    // ۶. تولید Scene Plan (با پست‌های ایمن)
+    // ۶. تولید Scene Plan
     console.log(`🐞 [RenderAction] مرحله 5: تولید سناریوی ساختاریافته...`);
     const plan = generateScenePlan(
       scriptRes.data,
@@ -74,51 +57,60 @@ export async function renderAndUploadTeaser(username: string) {
       brandProfile,
       template
     );
+    console.log(`🐞 [RenderAction] ✅ تعداد صحنه‌ها: ${plan.scenes.length}`);
 
     // ۷. اعتبارسنجی کیفیت
-    console.log(`🐞 [RenderAction] مرحله 6: اعتبارسنجی کیفیت...`);
     const validation = validateScenePlan(plan);
     if (!validation.valid) {
       console.warn(`🐞 [RenderAction] ⚠️ خطاهای اعتبارسنجی:`, validation.errors);
     }
 
-    // ۸. دانلود همه‌ی تصاویر پست‌ها
-    console.log(`🐞 [RenderAction] مرحله 7: دانلود تصاویر پست‌ها...`);
-    const postsWithLocalImages = await downloadAllPostImages(safePosts);
-    console.log(`🐞 [RenderAction] ✅ تصاویر پردازش شدند`);
+    // ۸. آماده‌سازی props برای Remotion Player
+    const remotionProps = {
+      posts: safePosts.map((p: any) => ({
+        id: p.id || '',
+        imageUrl: p.imageUrl || '',
+        caption: p.caption || '',
+        likesCount: p.likesCount || 0,
+      })),
+      script: {
+        hook: scriptRes.data.hook || '✨ محتوای جذاب!',
+        scenes: plan.scenes.map((s) => ({
+          postIndex: s.assetIndex ?? 0,
+          duration: s.duration || 3,
+          caption: s.text || 'محتوای ویژه',
+          animation: s.animation || 'fade',
+        })),
+        cta: scriptRes.data.cta || '🚀 همین حالا دنبال کنید!',
+        brandHandle: profileRes.data.username || username,
+        colorPalette: {
+          primary: plan.colorVariant || '#6366f1',
+          secondary: '#8b5cf6',
+          text: '#FFFFFF',
+        },
+        audioMood: plan.musicMood || 'upbeat',
+      },
+    };
 
-    // ۹. رندر ویدیو
-    console.log(`🐞 [RenderAction] مرحله 8: رندر ویدیو با قالب ${template.name}...`);
-    const videoPath = await VideoRenderer.renderTeaser({
-      posts: postsWithLocalImages,
-      plan,
-    });
+    console.log(`🐞 [RenderAction] ✅ Remotion Props آماده شد. تعداد پست‌ها: ${remotionProps.posts.length}`);
 
-    // ۱۰. آپلود در Supabase
-    console.log(`🐞 [RenderAction] مرحله 9: آپلود در Supabase...`);
-    const videoUrl = await VideoStorage.uploadVideo(videoPath);
-
-    // ۱۱. پاک کردن فایل‌های موقت تصاویر
-    console.log(`🐞 [RenderAction] پاک کردن فایل‌های موقت...`);
-    postsWithLocalImages.forEach(post => {
-      if (post.imageUrl && !post.imageUrl.startsWith('http') && !post.imageUrl.startsWith('data:')) {
-        try { fs.unlinkSync(post.imageUrl); } catch (e) {}
-      }
-    });
-
-    console.log(`🐞 [RenderAction] ✅ همه‌چیز کامل شد!`);
+    // ۹. برگرداندن پاسخ ساختاریافته (بدون رندر MP4)
     return {
       success: true,
-      videoUrl,
-      templateName: template.name,
-      sceneCount: plan.scenes.length,
+      profile: profileRes.data,
+      brandProfile,
+      template,
+      script: scriptRes.data,
+      scenePlan: plan,
+      remotionProps,
+      previewMode: 'client',
     };
   } catch (error) {
     console.error(`🐞 [RenderAction] ❌ خطا:`, error);
     return {
       success: false,
       error: {
-        message: error instanceof Error ? error.message : 'خطای ناشناخته',
+        message: error instanceof Error ? error.message : 'خطای ناشناخته در پردازش',
         code: 'RENDER_FAILED',
       },
     };
