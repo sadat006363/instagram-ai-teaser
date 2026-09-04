@@ -13,7 +13,6 @@
     "@remotion/canvas": "4.0.518",
     "@remotion/captions": "4.0.518",
     "@remotion/cli": "4.0.518",
-    "@remotion/compositor-win32-x64-msvc": "4.0.518",
     "@remotion/licensing": "4.0.518",
     "@remotion/media": "4.0.518",
     "@remotion/media-parser": "4.0.518",
@@ -37,7 +36,14 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "remotion": "4.0.518",
-    "zod": "3.23.8"
+    "zod": "4.4.3"
+  },
+  "optionalDependencies": {
+    "@remotion/compositor-win32-x64-msvc": "4.0.518",
+    "@remotion/compositor-linux-x64-gnu": "4.0.518",
+    "@remotion/compositor-linux-x64-musl": "4.0.518",
+    "@remotion/compositor-darwin-x64": "4.0.518",
+    "@remotion/compositor-darwin-arm64": "4.0.518"
   },
   "devDependencies": {
     "@types/node": "^20",
