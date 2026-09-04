@@ -3,7 +3,7 @@
 import { Player } from '@remotion/player';
 import { VideoTeaser } from '@/remotion/compositions/VideoTeaser';
 import { RemotionProps } from '@/lib/types/result.types';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface TeaserPreviewProps {
   props: RemotionProps;
@@ -12,6 +12,12 @@ interface TeaserPreviewProps {
 
 export function TeaserPreview({ props, className = '' }: TeaserPreviewProps) {
   const [isReady, setIsReady] = useState(false);
+
+  // ✅ بعد از ۱ ثانیه Player را آماده در نظر بگیریم
+  useEffect(() => {
+    const timer = setTimeout(() => setIsReady(true), 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const totalDuration = props.script.scenes.reduce((sum, s) => sum + s.duration, 2 + 2);
   const durationInFrames = Math.max(totalDuration * 30, 15 * 30);
@@ -63,11 +69,10 @@ export function TeaserPreview({ props, className = '' }: TeaserPreviewProps) {
             height: '100%',
             display: 'block',
           }}
-          onReady={() => setIsReady(true)}
         />
       </div>
       {!isReady && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl pointer-events-none">
           <div className="text-white text-lg font-medium">⏳ در حال بارگذاری...</div>
         </div>
       )}
