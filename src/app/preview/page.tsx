@@ -42,6 +42,11 @@ type ErrorState = {
 } | null;
 
 // ============================
+//  🚫 غیرفعال کردن Prerender برای این صفحه
+// ============================
+export const dynamic = 'force-dynamic';
+
+// ============================
 //  کامپوننت اصلی
 // ============================
 
@@ -128,7 +133,7 @@ export default function PreviewPage() {
           component={VideoTeaser}
           inputProps={{
             posts,
-            script, // ✅ حالا TypeScript می‌داند که script قطعاً وجود دارد (به دلیل Type Guard)
+            script,
           }}
           durationInFrames={15 * 30}
           fps={30}
