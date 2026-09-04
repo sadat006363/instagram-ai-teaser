@@ -21,7 +21,7 @@ export class RapidApiProvider implements InstagramScraperProvider {
     
     this.apiKey = config.apiKey;
     this.host = config.host;
-    this.baseUrl = config.baseUrl || 'https://instagram-scraper-api2.p.rapidapi.com';
+    this.baseUrl = config.baseUrl || 'https://instagram-scraper-stable-api.p.rapidapi.com';
   }
 
   async fetchProfile(username: string): Promise<InstagramProfileData> {
@@ -29,33 +29,96 @@ export class RapidApiProvider implements InstagramScraperProvider {
     console.log(`🐞 [RapidAPI] نام کاربری: ${username}`);
 
     try {
-      // ۱. دریافت اطلاعات پروفایل
-      console.log(`🐞 [RapidAPI] مرحله 1: ارسال درخواست به user_info...`);
-      const profileResponse = await this.fetchUserInfo(username);
-      console.log(`🐞 [RapidAPI] ✅ پاسخ پروفایل دریافت شد.`);
-      console.log(`🐞 [RapidAPI] 📌 is_private: ${profileResponse.is_private}`);
-      console.log(`🐞 [RapidAPI] 📌 username: ${profileResponse.username}`);
+      // ۱. دریافت اطلاعات پروفایل (شامل پست‌ها)
+      console.log(`🐞 [RapidAPI] مرحله 1: ارسال درخواست به اندپوینت جدید...`);
+      const data = await this.fetchUserData(username);
+      console.log(`🐞 [RapidAPI] ✅ پاسخ دریافت شد.`);
 
-      // ۲. دریافت پست‌های اخیر
-      console.log(`🐞 [RapidAPI] مرحله 2: ارسال درخواست به user_posts...`);
-      const postsResponse = await this.fetchUserPosts(username, 6);
-      console.log(`🐞 [RapidAPI] ✅ تعداد پست‌های دریافت‌شده: ${postsResponse.length}`);
+      // ۲. استخراج داده‌ها از پاسخ
+      const userData = data.user_data || data;
+      
+      if (!userData || !userData.username) {
+        throw new Error('داده‌های کاربر یافت نشد.');
+      }
 
-      // ۳. ترکیب و اعتبارسنجی
-      console.log(`🐞 [RapidAPI] مرحله 3: ترکیب و اعتبارسنجی داده‌ها...`);
+      console.log(`🐞 [RapidAPI] 📌 is_private: ${userData.is_private || false}`);
+      console.log(`🐞 [RapidAPI] 📌 username: ${userData.username}`);
+
+      // ۳. استخراج پست‌ها
+      let posts: any[] = [];
+      
+      // بررسی ساختارهای مختلف پاسخ
+      if (userData.edge_owner_to_timeline_media?.edges) {
+        posts = userData.edge_owner_to_timeline_media.edges.map((edge: any) => edge.node);
+      } else if (userData.posts) {
+        posts = userData.posts;
+      } else if (userData.media && Array.isArray(userData.media)) {
+        posts = userData.media;
+      } else if (userData.items && Array.isArray(userData.items)) {
+        posts = userData.items;
+      }
+
+      console.log(`🐞 [RapidAPI] ✅ تعداد پست‌های دریافت‌شده: ${posts.length}`);
+
+      // ۴. استخراج اطلاعات پروفایل
+      const profilePicUrl = userData.hd_profile_pic_url_info?.url || 
+                            userData.profile_pic_url_hd || 
+                            userData.profile_pic_url || 
+                            '';
+
+      // ۵. ترکیب و اعتبارسنجی
+      console.log(`🐞 [RapidAPI] مرحله 2: ترکیب و اعتبارسنجی داده‌ها...`);
       const rawData = {
-        username: profileResponse.username || username,
-        fullName: profileResponse.full_name || profileResponse.fullName || username,
-        bio: profileResponse.biography || profileResponse.bio || '',
-        profilePicUrl: profileResponse.profile_pic_url || profileResponse.profilePicUrl || '',
-        followersCount: profileResponse.follower_count || profileResponse.followersCount || 0,
-        isPrivate: profileResponse.is_private || profileResponse.isPrivate || false,
-        posts: postsResponse.map((post: any) => ({
-          id: post.id || post.pk || '',
-          imageUrl: post.image_url || post.display_url || post.imageUrl || '',
-          caption: post.caption || post.caption_text || '',
-          likesCount: post.like_count || post.likesCount || 0,
-        })),
+        username: userData.username || username,
+        fullName: userData.full_name || userData.fullName || username,
+        bio: userData.biography || userData.bio || '',
+        profilePicUrl: profilePicUrl,
+        followersCount: userData.follower_count || userData.followersCount || userData.followerCount || 0,
+        isPrivate: userData.is_private || userData.isPrivate || false,
+        posts: posts.slice(0, 6).map((post: any) => {
+          // استخراج کپشن
+          let caption = '';
+          if (post.edge_media_to_caption?.edges?.[0]?.node?.text) {
+            caption = post.edge_media_to_caption.edges[0].node.text;
+          } else if (post.caption) {
+            caption = post.caption;
+          } else if (post.caption_text) {
+            caption = post.caption_text;
+          }
+
+          // استخراج URL تصویر
+          let imageUrl = '';
+          if (post.display_url) {
+            imageUrl = post.display_url;
+          } else if (post.image_url) {
+            imageUrl = post.image_url;
+          } else if (post.thumbnail_src) {
+            imageUrl = post.thumbnail_src;
+          } else if (post.image_versions2?.candidates?.length > 0) {
+            imageUrl = post.image_versions2.candidates[0].url;
+          } else {
+            imageUrl = profilePicUrl; // فال‌بک به عکس پروفایل
+          }
+
+          // استخراج تعداد لایک
+          let likesCount = 0;
+          if (post.edge_media_preview_like?.count !== undefined) {
+            likesCount = post.edge_media_preview_like.count;
+          } else if (post.like_count !== undefined) {
+            likesCount = post.like_count;
+          } else if (post.likesCount !== undefined) {
+            likesCount = post.likesCount;
+          } else if (post.likes && post.likes.count !== undefined) {
+            likesCount = post.likes.count;
+          }
+
+          return {
+            id: post.id || post.pk || '',
+            imageUrl: imageUrl,
+            caption: caption || '',
+            likesCount: likesCount || 0,
+          };
+        }),
       };
 
       console.log(`🐞 [RapidAPI] 📌 داده‌های خام:`, {
@@ -71,48 +134,25 @@ export class RapidApiProvider implements InstagramScraperProvider {
     } catch (error: any) {
       console.error(`🐞 [RapidAPI] ❌ خطا در حین دریافت داده:`, error);
       console.error(`🐞 [RapidAPI] 📌 پیام خطا: ${error.message}`);
-      if (error.response) {
-        console.error(`🐞 [RapidAPI] 📌 وضعیت پاسخ: ${error.response.status}`);
-        console.error(`🐞 [RapidAPI] 📌 داده‌های پاسخ:`, error.response.data);
-      }
       this.handleApiError(error, username);
       throw error;
     }
   }
 
   /**
-   * دریافت اطلاعات پروفایل کاربر با پشتیبانی از Retry
+   * دریافت داده‌های کاربر از اندپوینت جدید
    */
-  private async fetchUserInfo(username: string): Promise<any> {
-    const url = `${this.baseUrl}/v1/user_info?username=${username}`;
+  private async fetchUserData(username: string): Promise<any> {
+    const url = `${this.baseUrl}/ig_get_fb_profile_hover.php?username_or_url=${username}`;
     const response = await this.fetchWithRetry(url);
     const data = await response.json();
     
-    // برخی APIها پاسخ را در data.data قرار می‌دهند
-    const result = data.data || data;
-    console.log(`🐞 [RapidAPI] 📌 ساختار پاسخ: ${Object.keys(result).join(', ')}`);
-    return result;
-  }
-
-  /**
-   * دریافت پست‌های کاربر با پشتیبانی از Retry
-   */
-  private async fetchUserPosts(username: string, limit: number): Promise<any[]> {
-    const url = `${this.baseUrl}/v1/user_posts?username=${username}&limit=${limit}`;
-    const response = await this.fetchWithRetry(url);
-    const data = await response.json();
-    
-    // برخی APIها posts را در data.data.items برمی‌گردانند
-    const posts = data.data?.items || data.items || data || [];
-    console.log(`🐞 [RapidAPI] 📌 تعداد پست‌ها در پاسخ: ${posts.length}`);
-    return posts;
+    console.log(`🐞 [RapidAPI] 📌 ساختار پاسخ: ${Object.keys(data).join(', ')}`);
+    return data;
   }
 
   /**
    * ارسال درخواست با پشتیبانی از Retry (تلاش مجدد خودکار)
-   * @param url - آدرس درخواست
-   * @param retries - تعداد تلاش مجدد (پیش‌فرض ۳)
-   * @param delay - تاخیر اولیه به میلی‌ثانیه (پیش‌فرض ۱۰۰۰ms)
    */
   private async fetchWithRetry(
     url: string,
@@ -131,24 +171,23 @@ export class RapidApiProvider implements InstagramScraperProvider {
 
         console.log(`🐞 [RapidAPI] 📥 وضعیت پاسخ: ${response.status}`);
 
-        // در صورت خطای Rate Limit یا 403، تلاش مجدد
-        if (response.status === 429 || response.status === 403) {
+        // خطاهای موقت (۴۲۹، ۵xx) -> Retry
+        if (response.status === 429 || response.status >= 500) {
           const errorText = await response.text();
           console.warn(`🐞 [RapidAPI] ⚠️ خطا در تلاش ${attempt}: ${response.status}`);
           console.warn(`🐞 [RapidAPI] ⚠️ متن پاسخ: ${errorText}`);
 
           if (attempt === retries) {
-            console.error(`🐞 [RapidAPI] ❌ تمام تلاش‌ها (${retries}) ناموفق بود.`);
-            throw new Error(`Rate limit exceeded after ${retries} attempts.`);
+            throw new Error(`Rate limit or server error after ${retries} attempts.`);
           }
 
-          // تاخیر افزایشی: ۱ ثانیه، ۲ ثانیه، ۳ ثانیه
           const waitTime = delay * attempt;
           console.log(`🐞 [RapidAPI] ⏳ منتظر ${waitTime}ms قبل از تلاش مجدد...`);
           await new Promise(resolve => setTimeout(resolve, waitTime));
           continue;
         }
 
+        // خطاهای دائمی (۴۰۳، ۴۰۱، ۴۰۴) -> بدون Retry
         if (!response.ok) {
           const errorText = await response.text();
           throw new Error(`HTTP ${response.status}: ${errorText}`);
@@ -156,13 +195,9 @@ export class RapidApiProvider implements InstagramScraperProvider {
 
         return response;
       } catch (error) {
-        if (attempt === retries) {
-          console.error(`🐞 [RapidAPI] ❌ تلاش ${attempt} ناموفق، پرتاب خطا.`);
-          throw error;
-        }
+        if (attempt === retries) throw error;
         console.warn(`🐞 [RapidAPI] ⚠️ خطا در تلاش ${attempt}:`, error);
         const waitTime = delay * attempt;
-        console.log(`🐞 [RapidAPI] ⏳ منتظر ${waitTime}ms قبل از تلاش مجدد...`);
         await new Promise(resolve => setTimeout(resolve, waitTime));
       }
     }

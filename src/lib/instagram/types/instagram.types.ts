@@ -12,7 +12,7 @@ export interface InstagramProfileData {
   profilePicUrl: string;
   followersCount: number;
   isPrivate: boolean;
-  posts: InstagramPost[]; // حداکثر ۶ پست اخیر
+  posts: InstagramPost[];
 }
 
 export interface InstagramScraperConfig {
@@ -21,4 +21,4 @@ export interface InstagramScraperConfig {
   baseUrl?: string;
 }
 
-export type ScraperProviderType = 'rapidapi' | 'mock';// Types will be added here
+export type ScraperProviderType = 'rapidapi' | 'mock';

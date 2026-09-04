@@ -10,17 +10,15 @@ export function createInstagramProvider(
   console.log(`🐞 [Factory] نوع درخواستی: ${type}`);
   console.log(`🐞 [Factory] SCRAPER_PROVIDER از env: ${process.env.SCRAPER_PROVIDER}`);
 
-  // اگر نوع mock نباشد، اما کلید RapidAPI وجود نداشته باشد، به mock برگرد
   if (type === 'rapidapi') {
     const apiKey = process.env.RAPIDAPI_KEY;
-    const host = process.env.RAPIDAPI_HOST;
+    const host = process.env.RAPIDAPI_HOST || 'instagram-scraper-stable-api.p.rapidapi.com';
 
     console.log(`🐞 [Factory] RAPIDAPI_KEY: ${apiKey ? '✅ وجود دارد' : '❌ وجود ندارد'}`);
-    console.log(`🐞 [Factory] RAPIDAPI_HOST: ${host || '❌ وجود ندارد'}`);
+    console.log(`🐞 [Factory] RAPIDAPI_HOST: ${host}`);
 
-    if (!apiKey || !host) {
+    if (!apiKey) {
       console.warn(`🐞 [Factory] ⚠️ کلید RapidAPI تنظیم نشده است. برگشت به Mock.`);
-      console.warn(`🐞 [Factory] برای استفاده از RapidAPI، RAPIDAPI_KEY و RAPIDAPI_HOST را در .env.local تنظیم کنید.`);
       console.log(`🐞 [Factory] ✅ برگرداندن Mock Provider (به‌دلیل عدم وجود کلید).`);
       return new MockInstagramProvider();
     }
@@ -29,7 +27,7 @@ export function createInstagramProvider(
     return new RapidApiProvider({
       apiKey,
       host,
-      baseUrl: process.env.RAPIDAPI_BASE_URL,
+      baseUrl: process.env.RAPIDAPI_BASE_URL || 'https://instagram-scraper-stable-api.p.rapidapi.com',
     });
   }
 
