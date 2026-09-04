@@ -21,7 +21,7 @@ export class RapidApiProvider implements InstagramScraperProvider {
     
     this.apiKey = config.apiKey;
     this.host = config.host;
-    this.baseUrl = config.baseUrl || 'https://instagram-scraper-stable-api.p.rapidapi.com';
+    this.baseUrl = config.baseUrl || 'https://instagram-scraper-api2.p.rapidapi.com';
   }
 
   async fetchProfile(username: string): Promise<InstagramProfileData> {
@@ -80,66 +80,98 @@ export class RapidApiProvider implements InstagramScraperProvider {
     }
   }
 
+  /**
+   * دریافت اطلاعات پروفایل کاربر با پشتیبانی از Retry
+   */
   private async fetchUserInfo(username: string): Promise<any> {
     const url = `${this.baseUrl}/v1/user_info?username=${username}`;
-    console.log(`🐞 [RapidAPI] 📤 ارسال درخواست به: ${url}`);
-
-    const response = await fetch(url, {
-      headers: {
-        'x-rapidapi-key': this.apiKey,
-        'x-rapidapi-host': this.host,
-      },
-    });
-
-    console.log(`🐞 [RapidAPI] 📥 وضعیت پاسخ (Status): ${response.status}`);
-    console.log(`🐞 [RapidAPI] 📥 OK: ${response.ok}`);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`🐞 [RapidAPI] ❌ خطای HTTP: ${response.status}`);
-      console.error(`🐞 [RapidAPI] ❌ متن پاسخ: ${errorText}`);
-      throw new Error(`RapidAPI error: ${response.status} ${response.statusText}. Response: ${errorText}`);
-    }
-
+    const response = await this.fetchWithRetry(url);
     const data = await response.json();
-    console.log(`🐞 [RapidAPI] ✅ داده‌های پروفایل دریافت شد.`);
-
+    
     // برخی APIها پاسخ را در data.data قرار می‌دهند
     const result = data.data || data;
     console.log(`🐞 [RapidAPI] 📌 ساختار پاسخ: ${Object.keys(result).join(', ')}`);
     return result;
   }
 
+  /**
+   * دریافت پست‌های کاربر با پشتیبانی از Retry
+   */
   private async fetchUserPosts(username: string, limit: number): Promise<any[]> {
     const url = `${this.baseUrl}/v1/user_posts?username=${username}&limit=${limit}`;
-    console.log(`🐞 [RapidAPI] 📤 ارسال درخواست به: ${url}`);
-
-    const response = await fetch(url, {
-      headers: {
-        'x-rapidapi-key': this.apiKey,
-        'x-rapidapi-host': this.host,
-      },
-    });
-
-    console.log(`🐞 [RapidAPI] 📥 وضعیت پاسخ پست‌ها (Status): ${response.status}`);
-    console.log(`🐞 [RapidAPI] 📥 OK: ${response.ok}`);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`🐞 [RapidAPI] ❌ خطای HTTP در پست‌ها: ${response.status}`);
-      console.error(`🐞 [RapidAPI] ❌ متن پاسخ: ${errorText}`);
-      throw new Error(`RapidAPI error: ${response.status} ${response.statusText}. Response: ${errorText}`);
-    }
-
+    const response = await this.fetchWithRetry(url);
     const data = await response.json();
-    console.log(`🐞 [RapidAPI] ✅ داده‌های پست‌ها دریافت شد.`);
-
+    
     // برخی APIها posts را در data.data.items برمی‌گردانند
     const posts = data.data?.items || data.items || data || [];
     console.log(`🐞 [RapidAPI] 📌 تعداد پست‌ها در پاسخ: ${posts.length}`);
     return posts;
   }
 
+  /**
+   * ارسال درخواست با پشتیبانی از Retry (تلاش مجدد خودکار)
+   * @param url - آدرس درخواست
+   * @param retries - تعداد تلاش مجدد (پیش‌فرض ۳)
+   * @param delay - تاخیر اولیه به میلی‌ثانیه (پیش‌فرض ۱۰۰۰ms)
+   */
+  private async fetchWithRetry(
+    url: string,
+    retries: number = 3,
+    delay: number = 1000
+  ): Promise<Response> {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        console.log(`🐞 [RapidAPI] 📤 تلاش ${attempt}/${retries}: ${url}`);
+        const response = await fetch(url, {
+          headers: {
+            'x-rapidapi-key': this.apiKey,
+            'x-rapidapi-host': this.host,
+          },
+        });
+
+        console.log(`🐞 [RapidAPI] 📥 وضعیت پاسخ: ${response.status}`);
+
+        // در صورت خطای Rate Limit یا 403، تلاش مجدد
+        if (response.status === 429 || response.status === 403) {
+          const errorText = await response.text();
+          console.warn(`🐞 [RapidAPI] ⚠️ خطا در تلاش ${attempt}: ${response.status}`);
+          console.warn(`🐞 [RapidAPI] ⚠️ متن پاسخ: ${errorText}`);
+
+          if (attempt === retries) {
+            console.error(`🐞 [RapidAPI] ❌ تمام تلاش‌ها (${retries}) ناموفق بود.`);
+            throw new Error(`Rate limit exceeded after ${retries} attempts.`);
+          }
+
+          // تاخیر افزایشی: ۱ ثانیه، ۲ ثانیه، ۳ ثانیه
+          const waitTime = delay * attempt;
+          console.log(`🐞 [RapidAPI] ⏳ منتظر ${waitTime}ms قبل از تلاش مجدد...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+          continue;
+        }
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+
+        return response;
+      } catch (error) {
+        if (attempt === retries) {
+          console.error(`🐞 [RapidAPI] ❌ تلاش ${attempt} ناموفق، پرتاب خطا.`);
+          throw error;
+        }
+        console.warn(`🐞 [RapidAPI] ⚠️ خطا در تلاش ${attempt}:`, error);
+        const waitTime = delay * attempt;
+        console.log(`🐞 [RapidAPI] ⏳ منتظر ${waitTime}ms قبل از تلاش مجدد...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+    }
+    throw new Error('Failed after all retries.');
+  }
+
+  /**
+   * مدیریت خطاهای API
+   */
   private handleApiError(error: any, username: string): never {
     console.error(`🐞 [RapidAPI] 🛠️ مدیریت خطا...`);
 
@@ -157,9 +189,9 @@ export class RapidApiProvider implements InstagramScraperProvider {
       throw new InstagramRateLimitError();
     }
     if (error.message?.includes('403') || error.message?.includes('Forbidden')) {
-      console.error(`🐞 [RapidAPI] 📌 خطای 403 - احتمالاً کلید API نامعتبر یا محدودیت دسترسی`);
+      console.error(`🐞 [RapidAPI] 📌 خطای 403 - احتمالاً کلید API نامعتبر، اشتراک منقضی، یا محدودیت دسترسی`);
       throw new InstagramScraperError(
-        'خطای 403: دسترسی غیرمجاز. کلید API را بررسی کنید.',
+        'خطای 403: دسترسی غیرمجاز. کلید API یا اشتراک را بررسی کنید.',
         'FORBIDDEN'
       );
     }
