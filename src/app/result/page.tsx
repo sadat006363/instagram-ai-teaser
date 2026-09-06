@@ -101,12 +101,10 @@ function ResultContent() {
         </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-          {/* Preview Player */}
           <div className="lg:col-span-3">
             <TeaserPreview props={result.remotionProps} className="max-w-[420px] mx-auto" />
           </div>
 
-          {/* Info & Actions */}
           <div className="lg:col-span-2 space-y-6">
             <div className="glass-effect rounded-xl p-6 space-y-4">
               <h3 className="text-sm font-medium text-gray-400">اطلاعات تیزر</h3>

@@ -18,8 +18,6 @@
     "@remotion/media-parser": "4.0.518",
     "@remotion/media-utils": "4.0.518",
     "@remotion/player": "4.0.518",
-    "@remotion/renderer": "4.0.518",
-    "@remotion/streaming": "4.0.518",
     "@remotion/studio": "4.0.518",
     "@remotion/studio-codemods": "4.0.518",
     "@remotion/studio-protocol": "4.0.518",
