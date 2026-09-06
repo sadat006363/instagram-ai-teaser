@@ -6,4 +6,5 @@ export default function HomePage() {
       <HeroSection />
     </main>
   );
+  //ببببب
 }
