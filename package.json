@@ -29,7 +29,7 @@
     "@remotion/zod-types": "4.0.518",
     "@supabase/supabase-js": "^2.45.3",
     "lucide-react": "^0.453.0",
-    "next": "15.0.0",
+    "next": "^15.2.1",
     "openai": "^4.76.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -37,11 +37,11 @@
     "zod": "4.4.3"
   },
   "optionalDependencies": {
-    "@remotion/compositor-win32-x64-msvc": "4.0.518",
+    "@remotion/compositor-darwin-arm64": "4.0.518",
+    "@remotion/compositor-darwin-x64": "4.0.518",
     "@remotion/compositor-linux-x64-gnu": "4.0.518",
     "@remotion/compositor-linux-x64-musl": "4.0.518",
-    "@remotion/compositor-darwin-x64": "4.0.518",
-    "@remotion/compositor-darwin-arm64": "4.0.518"
+    "@remotion/compositor-win32-x64-msvc": "4.0.518"
   },
   "devDependencies": {
     "@types/node": "^20",
@@ -49,7 +49,7 @@
     "@types/react-dom": "^18",
     "autoprefixer": "^10.4.20",
     "eslint": "^8",
-    "eslint-config-next": "15.0.0",
+    "eslint-config-next": "^15.2.1",
     "ignore-loader": "^0.1.2",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.14",
