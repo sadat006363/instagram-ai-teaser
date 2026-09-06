@@ -13,7 +13,6 @@ interface TeaserPreviewProps {
 export function TeaserPreview({ props, className = '' }: TeaserPreviewProps) {
   const [isReady, setIsReady] = useState(false);
 
-  // ✅ بعد از ۱ ثانیه Player را آماده در نظر بگیریم
   useEffect(() => {
     const timer = setTimeout(() => setIsReady(true), 1000);
     return () => clearTimeout(timer);
